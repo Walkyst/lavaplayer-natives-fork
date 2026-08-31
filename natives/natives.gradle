@@ -1,6 +1,71 @@
 import org.apache.tools.ant.taskdefs.condition.Os
 
 def getBuildParameters(base) {
+  def target = project.findProperty('nativeTarget') ?: System.getenv('NATIVE_TARGET')
+
+  if (target != null) {
+    if (target == "win-x86-64") {
+      return [
+          'identifier': "win-x86-64",
+          'library': "${base}.dll",
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release', '-A', 'x64'],
+          'buildArguments': ['--config', 'Release'],
+          'env': [:]
+      ]
+    } else if (target == "win-x86") {
+      return [
+          'identifier': "win-x86",
+          'library': "${base}.dll",
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release', '-A', 'Win32'],
+          'buildArguments': ['--config', 'Release'],
+          'env': [:]
+      ]
+    } else if (target == "darwin") {
+      return [
+          'identifier': 'darwin',
+          'library': "lib${base}.dylib",
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64'],
+          'buildArguments': [],
+          'env': [:]
+      ]
+    } else if (target == "linux-x86") {
+      return [
+          'identifier': "linux-x86",
+          'library': "lib${base}.so",
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_C_FLAGS=-m32', '-DCMAKE_CXX_FLAGS=-m32'],
+          'buildArguments': [],
+          'env': [:]
+      ]
+    } else if (target == "linux-armhf" || target == "linux-arm") {
+      def toolchainArgs = []
+      if (!Os.isFamily(Os.FAMILY_WINDOWS) && !Os.isFamily(Os.FAMILY_MAC) && System.getProperty("os.arch") != "arm" && System.getProperty("os.arch") != "aarch64") {
+        toolchainArgs = [
+            '-DCMAKE_SYSTEM_NAME=Linux',
+            '-DCMAKE_SYSTEM_PROCESSOR=arm',
+            '-DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc',
+            '-DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++',
+            '-DCMAKE_C_FLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=hard',
+            '-DCMAKE_CXX_FLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=hard'
+        ]
+      }
+      return [
+          'identifier': target,
+          'library': "lib${base}.so",
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release'] + toolchainArgs,
+          'buildArguments': [],
+          'env': [:]
+      ]
+    } else {
+      return [
+          'identifier': target,
+          'library': "lib${base}.so",
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release'],
+          'buildArguments': [],
+          'env': [:]
+      ]
+    }
+  }
+
   if (Os.isFamily(Os.FAMILY_WINDOWS)) {
     return [
         'identifier': "win-x86-64",
@@ -13,7 +78,7 @@ def getBuildParameters(base) {
     return [
         'identifier': 'darwin',
         'library': "lib${base}.dylib",
-        'setupArguments': ['-DCMAKE_BUILD_TYPE=Release'],
+        'setupArguments': ['-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64'],
         'buildArguments': [],
         'env': [:]
     ]

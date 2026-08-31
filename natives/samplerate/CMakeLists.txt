@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 project(samplerate C)
 
 if(NOT ${CMAKE_C_COMPILER_ID} STREQUAL "MSVC")
@@ -7,5 +7,9 @@ else()
 	set(CMAKE_C_FLAGS_RELEASE "/MT")
 endif()
 
+add_definitions(-DHAVE_CONFIG_H=1)
+
 include_directories(.)
-add_library(samplerate src/samplerate.c src/src_linear.c src/src_sinc.c src/src_zoh.c)
+include_directories(include)
+include_directories(src)
+add_library(samplerate STATIC src/samplerate.c src/src_linear.c src/src_sinc.c src/src_zoh.c)

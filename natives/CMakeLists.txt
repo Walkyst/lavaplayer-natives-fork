@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
-
+cmake_minimum_required(VERSION 3.10)
 add_subdirectory(samplerate)
 add_subdirectory(fdk-aac)
 add_subdirectory(vorbis)

@@ -1,0 +1,218 @@
+name: Build All Natives
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows (${{ matrix.target }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win-x86-64
+            arch: x64
+          - target: win-x86
+            arch: x86
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+
+      - name: Compile Natives (${{ matrix.target }})
+        shell: pwsh
+        run: |
+          .\gradlew.bat :natives:compileNatives -PnativeTarget=${{ matrix.target }} --stacktrace
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: natives-${{ matrix.target }}
+          path: natives-publish/src/main/resources/natives/${{ matrix.target }}/*
+
+  build-macos:
+    name: Build macOS (darwin Universal)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Build Tools
+        run: |
+          brew install cmake autoconf automake libtool
+
+      - name: Compile Natives (darwin)
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :natives:compileNatives -PnativeTarget=darwin --stacktrace
+
+      - name: Verify Universal Binary Architecture
+        run: |
+          file natives-publish/src/main/resources/natives/darwin/libconnector.dylib
+          lipo -info natives-publish/src/main/resources/natives/darwin/libconnector.dylib
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: natives-darwin
+          path: natives-publish/src/main/resources/natives/darwin/*
+
+  build-linux-glibc:
+    name: Build Linux GLIBC (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86-64
+            container: ubuntu:20.04
+            platform: linux/amd64
+          - target: linux-aarch64
+            container: ubuntu:20.04
+            platform: linux/arm64
+          - target: linux-armhf
+            container: ubuntu:20.04
+            platform: linux/amd64
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: matrix.platform != 'linux/amd64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build in Ubuntu Container
+        run: |
+          docker run --rm \
+            --platform ${{ matrix.platform }} \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            ${{ matrix.container }} \
+            bash -c "
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update && apt-get install -y --no-install-recommends \
+                openjdk-17-jdk build-essential cmake autoconf automake libtool pkg-config git ca-certificates file
+              if [ \"${{ matrix.target }}\" = \"linux-armhf\" ]; then
+                apt-get install -y --no-install-recommends gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+              fi
+              chmod +x ./gradlew
+              ./gradlew :natives:compileNatives -PnativeTarget=${{ matrix.target }} --stacktrace
+            "
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: natives-${{ matrix.target }}
+          path: natives-publish/src/main/resources/natives/${{ matrix.target }}/*
+
+  build-linux-musl:
+    name: Build Linux Musl (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-musl-x86-64
+            platform: linux/amd64
+          - target: linux-musl-aarch64
+            platform: linux/arm64
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: matrix.platform != 'linux/amd64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build in Alpine Container
+        run: |
+          docker run --rm \
+            --platform ${{ matrix.platform }} \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            alpine:latest \
+            sh -c "
+              apk add --no-cache openjdk17-jdk build-base cmake autoconf automake libtool pkgconfig bash git file
+              chmod +x ./gradlew
+              ./gradlew :natives:compileNatives -PnativeTarget=${{ matrix.target }} --stacktrace
+            "
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: natives-${{ matrix.target }}
+          path: natives-publish/src/main/resources/natives/${{ matrix.target }}/*
+
+  collect-natives:
+    name: Collect Natives into natives-publish
+    needs:
+      - build-windows
+      - build-macos
+      - build-linux-glibc
+      - build-linux-musl
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Download all compiled native binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Merge compiled native binaries into natives-publish folder
+        run: |
+          mkdir -p natives-publish/src/main/resources/natives
+          for dir in downloaded-artifacts/natives-*; do
+            target_name=$(basename "$dir" | sed 's/natives-//')
+            echo "Placing binaries into natives-publish/src/main/resources/natives/$target_name"
+            mkdir -p "natives-publish/src/main/resources/natives/$target_name"
+            cp -rf "$dir"/* "natives-publish/src/main/resources/natives/$target_name/"
+          done
+          echo "=== Final natives-publish resources structure ==="
+          ls -laR natives-publish/src/main/resources/natives/
+
+      - name: Commit and Push Updated Natives
+        if: github.event_name != 'pull_request'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add natives-publish/src/main/resources/natives/
+          if git diff --staged --quiet; then
+            echo "No changes to commit (all binaries up-to-date)."
+          else
+            git commit -m "chore: update compiled natives in natives-publish"
+            git push
+          fi

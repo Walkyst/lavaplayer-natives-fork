@@ -32,7 +32,7 @@ def getBuildParameters(base) {
       return [
           'identifier': "linux-x86",
           'library': "lib${base}.so",
-          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_C_FLAGS=-m32', '-DCMAKE_CXX_FLAGS=-m32'],
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_SYSTEM_NAME=Linux', '-DCMAKE_SYSTEM_PROCESSOR=i686', '-DCMAKE_C_FLAGS=-m32', '-DCMAKE_CXX_FLAGS=-m32', '-DCMAKE_SHARED_LINKER_FLAGS=-m32'],
           'buildArguments': [],
           'env': [:]
       ]
@@ -50,6 +50,25 @@ def getBuildParameters(base) {
       }
       return [
           'identifier': target,
+          'library': "lib${base}.so",
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release'] + toolchainArgs,
+          'buildArguments': [],
+          'env': [:]
+      ]
+    } else if (target == "linux-aarch32") {
+      def toolchainArgs = []
+      if (!Os.isFamily(Os.FAMILY_WINDOWS) && !Os.isFamily(Os.FAMILY_MAC) && System.getProperty("os.arch") != "arm" && System.getProperty("os.arch") != "aarch64") {
+        toolchainArgs = [
+            '-DCMAKE_SYSTEM_NAME=Linux',
+            '-DCMAKE_SYSTEM_PROCESSOR=arm',
+            '-DCMAKE_C_COMPILER=arm-linux-gnueabi-gcc',
+            '-DCMAKE_CXX_COMPILER=arm-linux-gnueabi-g++',
+            '-DCMAKE_C_FLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=softfp',
+            '-DCMAKE_CXX_FLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=softfp'
+        ]
+      }
+      return [
+          'identifier': "linux-aarch32",
           'library': "lib${base}.so",
           'setupArguments': ['-DCMAKE_BUILD_TYPE=Release'] + toolchainArgs,
           'buildArguments': [],

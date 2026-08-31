@@ -216,7 +216,7 @@ def waitForAndCheckSuccess(process, name) {
 
 def buildOpusOnLinux(force) {
   def target = project.findProperty('nativeTarget') ?: System.getenv('NATIVE_TARGET')
-  def is32Bit = (target == "linux-x86" || target == "linux-armhf" || target == "linux-arm")
+  def is32Bit = (target == "linux-x86" || target == "linux-armhf" || target == "linux-arm" || target == "linux-aarch32")
   def archFolder = is32Bit ? "32" : "64"
   def present = file("${projectDir}/libs/${archFolder}/libopus.a").exists()
 
@@ -242,6 +242,24 @@ def buildOpusOnLinux(force) {
             '-DCMAKE_CXX_FLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=hard'
         ])
       }
+    } else if (target == "linux-aarch32") {
+      if (System.getProperty("os.arch") != "arm" && System.getProperty("os.arch") != "aarch64") {
+        cmakeArgs.addAll([
+            '-DCMAKE_SYSTEM_NAME=Linux',
+            '-DCMAKE_SYSTEM_PROCESSOR=arm',
+            '-DCMAKE_C_COMPILER=arm-linux-gnueabi-gcc',
+            '-DCMAKE_CXX_COMPILER=arm-linux-gnueabi-g++',
+            '-DCMAKE_C_FLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=softfp',
+            '-DCMAKE_CXX_FLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=softfp'
+        ])
+      }
+    } else if (target == "linux-x86") {
+      cmakeArgs.addAll([
+          '-DCMAKE_SYSTEM_NAME=Linux',
+          '-DCMAKE_SYSTEM_PROCESSOR=i686',
+          '-DCMAKE_C_FLAGS=-m32',
+          '-DCMAKE_CXX_FLAGS=-m32'
+      ])
     }
 
     def process = cmakeArgs.execute(null as String[], projectDir)
@@ -306,7 +324,7 @@ def buildMpg123OnMac(force) {
 
 def buildMpg123OnLinux(force) {
   def target = project.findProperty('nativeTarget') ?: System.getenv('NATIVE_TARGET')
-  def is32Bit = (target == "linux-x86" || target == "linux-armhf" || target == "linux-arm")
+  def is32Bit = (target == "linux-x86" || target == "linux-armhf" || target == "linux-arm" || target == "linux-aarch32")
   def archFolder = is32Bit ? "32" : "64"
   def present = file("${projectDir}/libs/${archFolder}/libmpg123.a").exists()
 
@@ -319,14 +337,23 @@ def buildMpg123OnLinux(force) {
       flags += " -m32"
     } else if (target == "linux-armhf" || target == "linux-arm") {
       flags += " -march=armv7-a -mfpu=neon -mfloat-abi=hard"
+    } else if (target == "linux-aarch32") {
+      flags += " -march=armv7-a -mfpu=neon -mfloat-abi=softfp"
     }
     def configureArgs = ['./configure', '--enable-static', '--disable-shared', '--with-pic',
                          '--disable-dependency-tracking',
                          "CFLAGS=$flags", "CXXFLAGS=$flags"]
-    if (target == "linux-armhf" || target == "linux-arm") {
+    if (target == "linux-x86") {
+      configureArgs.add('--host=i686-linux-gnu')
+    } else if (target == "linux-armhf" || target == "linux-arm") {
       if (System.getProperty("os.arch") != "arm" && System.getProperty("os.arch") != "aarch64") {
         configureArgs.add('--host=arm-linux-gnueabihf')
         configureArgs.add('CC=arm-linux-gnueabihf-gcc')
+      }
+    } else if (target == "linux-aarch32") {
+      if (System.getProperty("os.arch") != "arm" && System.getProperty("os.arch") != "aarch64") {
+        configureArgs.add('--host=arm-linux-gnueabi')
+        configureArgs.add('CC=arm-linux-gnueabi-gcc')
       }
     }
     def process = configureArgs.execute(null as String[], mpgDir)
@@ -362,6 +389,15 @@ def prepareOggOnLinux(force) {
         configureArgs.add("CC=arm-linux-gnueabihf-gcc")
         configureArgs.add("CFLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=hard -fPIC")
       }
+    } else if (target == "linux-aarch32") {
+      if (System.getProperty("os.arch") != "arm" && System.getProperty("os.arch") != "aarch64") {
+        configureArgs.add("--host=arm-linux-gnueabi")
+        configureArgs.add("CC=arm-linux-gnueabi-gcc")
+        configureArgs.add("CFLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=softfp -fPIC")
+      }
+    } else if (target == "linux-x86") {
+      configureArgs.add("--host=i686-linux-gnu")
+      configureArgs.add("CFLAGS=-m32 -fPIC")
     }
     def process = configureArgs.execute(null as String[], oggDir)
 

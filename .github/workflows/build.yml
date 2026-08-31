@@ -94,12 +94,27 @@ jobs:
           - target: linux-x86-64
             container: ubuntu:20.04
             platform: linux/amd64
+            packages: ''
+          - target: linux-x86
+            container: ubuntu:20.04
+            platform: linux/amd64
+            packages: 'gcc-multilib g++-multilib'
           - target: linux-aarch64
             container: ubuntu:20.04
             platform: linux/arm64
+            packages: ''
           - target: linux-armhf
             container: ubuntu:20.04
             platform: linux/amd64
+            packages: 'gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf'
+          - target: linux-arm
+            container: ubuntu:20.04
+            platform: linux/amd64
+            packages: 'gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf'
+          - target: linux-aarch32
+            container: ubuntu:20.04
+            platform: linux/amd64
+            packages: 'gcc-arm-linux-gnueabi g++-arm-linux-gnueabi'
 
     steps:
       - name: Checkout Code
@@ -119,10 +134,7 @@ jobs:
             bash -c "
               export DEBIAN_FRONTEND=noninteractive
               apt-get update && apt-get install -y --no-install-recommends \
-                openjdk-17-jdk build-essential cmake autoconf automake libtool pkg-config git ca-certificates file
-              if [ \"${{ matrix.target }}\" = \"linux-armhf\" ]; then
-                apt-get install -y --no-install-recommends gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
-              fi
+                openjdk-17-jdk build-essential cmake autoconf automake libtool pkg-config git ca-certificates file ${{ matrix.packages }}
               chmod +x ./gradlew
               ./gradlew :natives:compileNatives -PnativeTarget=${{ matrix.target }} --stacktrace
             "

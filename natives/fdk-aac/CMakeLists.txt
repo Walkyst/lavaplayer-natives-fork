@@ -16,7 +16,7 @@ foreach(subdir ${MAIN_DIRS})
 	include_directories("${subdir}/include")
 endforeach()
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+if (MSVC)
 	add_definitions(-Dinline=__inline)
 	set(CMAKE_CXX_FLAGS_RELEASE "/MT")
 else()

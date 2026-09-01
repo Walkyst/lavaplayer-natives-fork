@@ -6,7 +6,7 @@ get_filename_component(ROOT_DIR "." ABSOLUTE)
 set(VORBIS_SOURCE "${ROOT_DIR}/libvorbis-1.3.7/lib")
 set(OGG_SOURCE "${ROOT_DIR}/libogg-1.3.6/src")
 
-if ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+if (MSVC)
 	set(CMAKE_C_FLAGS_RELEASE "/MT")
 else()
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -fdata-sections -ffunction-sections")

@@ -253,6 +253,28 @@ def buildOpusOnLinux(force) {
             '-DCMAKE_CXX_FLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=softfp'
         ])
       }
+    } else if (target == "linux-aarch64") {
+      if (System.getProperty("os.arch") != "aarch64") {
+        cmakeArgs.addAll([
+            '-DCMAKE_SYSTEM_NAME=Linux',
+            '-DCMAKE_SYSTEM_PROCESSOR=aarch64',
+            '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc',
+            '-DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++',
+            '-DCMAKE_C_FLAGS=-march=armv8-a',
+            '-DCMAKE_CXX_FLAGS=-march=armv8-a'
+        ])
+      }
+    } else if (target == "linux-musl-aarch64") {
+      if (System.getProperty("os.arch") != "aarch64") {
+        cmakeArgs.addAll([
+            '-DCMAKE_SYSTEM_NAME=Linux',
+            '-DCMAKE_SYSTEM_PROCESSOR=aarch64',
+            '-DCMAKE_C_COMPILER=aarch64-linux-musl-gcc',
+            '-DCMAKE_CXX_COMPILER=aarch64-linux-musl-g++',
+            '-DCMAKE_C_FLAGS=-march=armv8-a',
+            '-DCMAKE_CXX_FLAGS=-march=armv8-a'
+        ])
+      }
     } else if (target == "linux-x86") {
       cmakeArgs.addAll([
           '-DCMAKE_SYSTEM_NAME=Linux',
@@ -281,6 +303,11 @@ def buildMpg123OnMac(force) {
   if (force || !outLib.exists()) {
     file("${projectDir}/libs/64").mkdirs()
     def mpgSrcDir = file("$projectDir/mp3/mpg123-${mpg123Version}")
+    def srcPath = mpgSrcDir.absolutePath
+    try {
+      ["sh", "-c", "touch ${srcPath}/aclocal.m4 ${srcPath}/configure ${srcPath}/src/config.h.in ${srcPath}/Makefile.in"].execute().waitFor()
+    } catch (Exception ignored) {}
+
     def archs = [
         [arch: 'x86_64', host: 'x86_64-apple-darwin'],
         [arch: 'arm64', host: 'aarch64-apple-darwin']
@@ -300,6 +327,7 @@ def buildMpg123OnMac(force) {
           '--disable-shared',
           '--with-pic',
           '--disable-dependency-tracking',
+          '--disable-maintainer-mode',
           "CFLAGS=$flags",
           "CXXFLAGS=$flags",
           "LDFLAGS=-arch ${item.arch}",
@@ -309,7 +337,7 @@ def buildMpg123OnMac(force) {
       def process = configureArgs.execute(null as String[], buildDirArch)
       waitForAndCheckSuccess(process, "Mpg123 (${item.arch}) ./configure")
 
-      process = ["make", "-o", "configure.ac", "-o", "aclocal.m4", "-o", "Makefile.am"].
+      process = ["make", "-o", "${srcPath}/configure.ac", "-o", "${srcPath}/aclocal.m4", "-o", "${srcPath}/Makefile.am", "-o", "${srcPath}/Makefile.in"].
           execute(null as String[], buildDirArch)
       waitForAndCheckSuccess(process, "Mpg123 (${item.arch}) make")
 
@@ -355,6 +383,16 @@ def buildMpg123OnLinux(force) {
         configureArgs.add('--host=arm-linux-gnueabi')
         configureArgs.add('CC=arm-linux-gnueabi-gcc')
       }
+    } else if (target == "linux-aarch64") {
+      if (System.getProperty("os.arch") != "aarch64") {
+        configureArgs.add('--host=aarch64-linux-gnu')
+        configureArgs.add('CC=aarch64-linux-gnu-gcc')
+      }
+    } else if (target == "linux-musl-aarch64") {
+      if (System.getProperty("os.arch") != "aarch64") {
+        configureArgs.add('--host=aarch64-linux-musl')
+        configureArgs.add('CC=aarch64-linux-musl-gcc')
+      }
     }
     def process = configureArgs.execute(null as String[], mpgDir)
 
@@ -394,6 +432,18 @@ def prepareOggOnLinux(force) {
         configureArgs.add("--host=arm-linux-gnueabi")
         configureArgs.add("CC=arm-linux-gnueabi-gcc")
         configureArgs.add("CFLAGS=-march=armv7-a -mfpu=neon -mfloat-abi=softfp -fPIC")
+      }
+    } else if (target == "linux-aarch64") {
+      if (System.getProperty("os.arch") != "aarch64") {
+        configureArgs.add("--host=aarch64-linux-gnu")
+        configureArgs.add("CC=aarch64-linux-gnu-gcc")
+        configureArgs.add("CFLAGS=-march=armv8-a -fPIC")
+      }
+    } else if (target == "linux-musl-aarch64") {
+      if (System.getProperty("os.arch") != "aarch64") {
+        configureArgs.add("--host=aarch64-linux-musl")
+        configureArgs.add("CC=aarch64-linux-musl-gcc")
+        configureArgs.add("CFLAGS=-march=armv8-a -fPIC")
       }
     } else if (target == "linux-x86") {
       configureArgs.add("--host=i686-linux-gnu")

@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
+project(lavaplayer_natives C CXX)
+
 add_subdirectory(samplerate)
 add_subdirectory(fdk-aac)
 add_subdirectory(vorbis)

@@ -101,8 +101,8 @@ jobs:
             packages: 'gcc-multilib g++-multilib'
           - target: linux-aarch64
             container: ubuntu:20.04
-            platform: linux/arm64
-            packages: ''
+            platform: linux/amd64
+            packages: 'gcc-aarch64-linux-gnu g++-aarch64-linux-gnu'
           - target: linux-armhf
             container: ubuntu:20.04
             platform: linux/amd64
@@ -119,10 +119,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        if: matrix.platform != 'linux/amd64'
-        uses: docker/setup-qemu-action@v3
 
       - name: Build in Ubuntu Container
         run: |
@@ -153,27 +149,24 @@ jobs:
       matrix:
         include:
           - target: linux-musl-x86-64
-            platform: linux/amd64
+            container: alpine:latest
+            setup: "apk add --no-cache openjdk17-jdk build-base cmake autoconf automake libtool pkgconfig bash git file"
           - target: linux-musl-aarch64
-            platform: linux/arm64
+            container: dockcross/linux-arm64-musl:latest
+            setup: "apt-get update && apt-get install -y --no-install-recommends openjdk-17-jdk"
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        if: matrix.platform != 'linux/amd64'
-        uses: docker/setup-qemu-action@v3
-
-      - name: Build in Alpine Container
+      - name: Build in Container
         run: |
           docker run --rm \
-            --platform ${{ matrix.platform }} \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            alpine:latest \
+            ${{ matrix.container }} \
             sh -c "
-              apk add --no-cache openjdk17-jdk build-base cmake autoconf automake libtool pkgconfig bash git file
+              ${{ matrix.setup }}
               chmod +x ./gradlew
               ./gradlew :natives:compileNatives -PnativeTarget=${{ matrix.target }} --stacktrace
             "

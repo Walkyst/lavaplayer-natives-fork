@@ -74,6 +74,44 @@ def getBuildParameters(base) {
           'buildArguments': [],
           'env': [:]
       ]
+    } else if (target == "linux-aarch64") {
+      def toolchainArgs = []
+      if (!Os.isFamily(Os.FAMILY_WINDOWS) && !Os.isFamily(Os.FAMILY_MAC) && System.getProperty("os.arch") != "aarch64") {
+        toolchainArgs = [
+            '-DCMAKE_SYSTEM_NAME=Linux',
+            '-DCMAKE_SYSTEM_PROCESSOR=aarch64',
+            '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc',
+            '-DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++',
+            '-DCMAKE_C_FLAGS=-march=armv8-a',
+            '-DCMAKE_CXX_FLAGS=-march=armv8-a'
+        ]
+      }
+      return [
+          'identifier': "linux-aarch64",
+          'library': "lib${base}.so",
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release'] + toolchainArgs,
+          'buildArguments': [],
+          'env': [:]
+      ]
+    } else if (target == "linux-musl-aarch64") {
+      def toolchainArgs = []
+      if (!Os.isFamily(Os.FAMILY_WINDOWS) && !Os.isFamily(Os.FAMILY_MAC) && System.getProperty("os.arch") != "aarch64") {
+        toolchainArgs = [
+            '-DCMAKE_SYSTEM_NAME=Linux',
+            '-DCMAKE_SYSTEM_PROCESSOR=aarch64',
+            '-DCMAKE_C_COMPILER=aarch64-linux-musl-gcc',
+            '-DCMAKE_CXX_COMPILER=aarch64-linux-musl-g++',
+            '-DCMAKE_C_FLAGS=-march=armv8-a',
+            '-DCMAKE_CXX_FLAGS=-march=armv8-a'
+        ]
+      }
+      return [
+          'identifier': "linux-musl-aarch64",
+          'library': "lib${base}.so",
+          'setupArguments': ['-DCMAKE_BUILD_TYPE=Release'] + toolchainArgs,
+          'buildArguments': [],
+          'env': [:]
+      ]
     } else {
       return [
           'identifier': target,
@@ -142,14 +180,18 @@ def createBuildTask(tasksHolder, config) {
     workingDir buildDirectory
     executable 'cmake'
     args(parameters.setupArguments + ['../..'])
-    environment parameters.env
+    parameters.env.each { k, v ->
+      environment k, v
+    }
   }
 
   def buildTask = tasksHolder.create("${taskBase}-build", Exec) {
     workingDir buildDirectory
     executable 'cmake'
     args(['--build', '.'] + parameters.buildArguments)
-    environment parameters.env
+    parameters.env.each { k, v ->
+      environment k, v
+    }
   }
 
   def deployTask = tasksHolder.create("${taskBase}-deploy") { doLast {

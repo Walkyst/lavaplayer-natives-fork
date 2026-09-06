@@ -143,6 +143,42 @@ task load { doLast {
       into "$projectDir/mp3/mpg123-${mpg123Version}"
     }
   }
+
+  if (Os.isFamily(Os.FAMILY_WINDOWS) && !file("$projectDir/mp3/mpg123-${mpg123Version}-windows").exists()) {
+    def download64 = "$buildDir/tmp/mpg123-${mpg123Version}-x86-64.zip"
+    def download32 = "$buildDir/tmp/mpg123-${mpg123Version}-x86.zip"
+    def unpackPath = "$buildDir/tmp"
+
+    download.run {
+      src "https://www.mpg123.de/download/win64/${mpg123Version}/mpg123-${mpg123Version}-x86-64.zip"
+      dest download64
+    }
+
+    download.run {
+      src "https://www.mpg123.de/download/win32/${mpg123Version}/mpg123-${mpg123Version}-x86.zip"
+      dest download32
+    }
+
+    copy {
+      from zipTree(download64)
+      into unpackPath
+    }
+
+    copy {
+      from "$unpackPath/mpg123-${mpg123Version}-x86-64"
+      into "$projectDir/mp3/mpg123-${mpg123Version}-windows/x86-64"
+    }
+
+    copy {
+      from zipTree(download32)
+      into unpackPath
+    }
+
+    copy {
+      from "$unpackPath/mpg123-${mpg123Version}-x86"
+      into "$projectDir/mp3/mpg123-${mpg123Version}-windows/x86"
+    }
+  }
 }}
 
 def buildOpusOnWindows(force) {
@@ -182,11 +218,24 @@ def buildMpg123OnWindows(force) {
   def target = project.findProperty('nativeTarget') ?: System.getenv('NATIVE_TARGET')
   def is32Bit = (target == "win-x86")
   def archFolder = is32Bit ? "32" : "64"
+  def archName = is32Bit ? "x86" : "x86-64"
   def base = "$projectDir/libs/${archFolder}"
   def libFile = file("${base}/mpg123.lib")
-  def dllFile = file("${project(':natives-publish').projectDir}/src/main/resources/natives/${is32Bit ? 'win-x86' : 'win-x86-64'}/libmpg123-0.dll")
+  def targetDir = file("${project(':natives-publish').projectDir}/src/main/resources/natives/${is32Bit ? 'win-x86' : 'win-x86-64'}")
+  def dllFile = file("${targetDir}/libmpg123-0.dll")
+  def downloadedDll = file("$projectDir/mp3/mpg123-${mpg123Version}-windows/${archName}/libmpg123-0.dll")
 
-  if ((force || !libFile.exists()) && dllFile.exists()) {
+  if (downloadedDll.exists()) {
+    targetDir.mkdirs()
+    copy {
+      from downloadedDll
+      into targetDir
+    }
+  }
+
+  def needRebuildLib = force || !libFile.exists() || (dllFile.exists() && libFile.lastModified() < dllFile.lastModified())
+
+  if (needRebuildLib && dllFile.exists()) {
     file(base).mkdirs()
     def defFile = file("${base}/mpg123.def")
     defFile.text = "LIBRARY libmpg123-0.dll\nEXPORTS\nmpg123_init\nmpg123_new\nmpg123_delete\nmpg123_open_feed\nmpg123_close\nmpg123_decode\n"
@@ -202,7 +251,7 @@ def buildMpg123OnWindows(force) {
     }
     def machineFlag = is32Bit ? "/machine:x86" : "/machine:x64"
     def proc = [libExe, "/def:${defFile.absolutePath}", "/out:${libFile.absolutePath}", machineFlag].execute(null as String[], file(base))
-    proc.waitForProcessOutput(System.out as Appendable, System.err)
+    waitForAndCheckSuccess(proc, "Mpg123 lib.exe")
   }
 }
 

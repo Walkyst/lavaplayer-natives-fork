@@ -198,6 +198,7 @@ def createBuildTask(tasksHolder, config) {
     copy {
       from distDirectory
       into deployDirectory
+      include parameters.library
     }
   }}
 
@@ -205,6 +206,7 @@ def createBuildTask(tasksHolder, config) {
     copy {
       from distDirectory
       into deployDirectory
+      include parameters.library
     }
   }}
 

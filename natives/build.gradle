@@ -11,7 +11,7 @@ apply plugin: 'de.undercouch.download'
 apply from: 'natives.gradle'
 
 ext.opusVersion = '1.5.2'
-ext.mpg123Version = '1.33.6'
+ext.mpg123Version = '1.33.7'
 ext.oggVersion = '1.3.6'
 ext.vorbisVersion = '1.3.7'
 ext.sampleRateVersion = '0.2.2'
@@ -359,6 +359,10 @@ def buildMpg123OnLinux(force) {
   if (force || !present) {
     file("${projectDir}/libs/${archFolder}").mkdirs()
     def mpgDir = file("$projectDir/mp3/mpg123-${mpg123Version}")
+    def srcPath = mpgDir.absolutePath
+    try {
+      ["sh", "-c", "find ${srcPath} -name Makefile.in -exec touch {} +; touch ${srcPath}/aclocal.m4 ${srcPath}/configure ${srcPath}/src/config.h.in"].execute().waitFor()
+    } catch (Exception ignored) {}
 
     def flags = "-fPIC -O3 -fdata-sections -ffunction-sections"
     if (is32Bit && target == "linux-x86") {
@@ -369,7 +373,7 @@ def buildMpg123OnLinux(force) {
       flags += " -march=armv7-a -mfpu=neon -mfloat-abi=softfp"
     }
     def configureArgs = ['./configure', '--enable-static', '--disable-shared', '--with-pic',
-                         '--disable-dependency-tracking',
+                         '--disable-dependency-tracking', '--disable-maintainer-mode',
                          "CFLAGS=$flags", "CXXFLAGS=$flags"]
     if (target == "linux-x86") {
       configureArgs.add('--host=i686-linux-gnu')
@@ -398,11 +402,11 @@ def buildMpg123OnLinux(force) {
 
     waitForAndCheckSuccess(process, "Mpg123 ./configure")
 
-    process = ["make", "-o", "configure.ac", "-o", "aclocal.m4", "-o", "Makefile.am", "clean"].
+    process = ["make", "-o", "configure.ac", "-o", "aclocal.m4", "-o", "Makefile.am", "-o", "Makefile.in", "-o", "src/config.h.in", "clean"].
         execute(null as String[], mpgDir)
     waitForAndCheckSuccess(process, "make clean")
 
-    process = ["make", "-o", "configure.ac", "-o", "aclocal.m4", "-o", "Makefile.am"].
+    process = ["make", "-o", "configure.ac", "-o", "aclocal.m4", "-o", "Makefile.am", "-o", "Makefile.in", "-o", "src/config.h.in"].
         execute(null as String[], mpgDir)
     waitForAndCheckSuccess(process, "make")
 

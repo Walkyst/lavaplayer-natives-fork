@@ -27,7 +27,7 @@ Native libraries for Lavaplayer.
 | Library | Version | Upstream Source |
 | :--- | :--- | :--- |
 | **Opus** | `1.5.2` | [xiph/opus](https://github.com/xiph/opus) |
-| **mpg123** | `1.33.6` | [mpg123.de](https://www.mpg123.de/) |
+| **mpg123** | `1.33.7` | [mpg123.de](https://www.mpg123.de/) |
 | **libvorbis** | `1.3.7` | [xiph/vorbis](https://github.com/xiph/vorbis) |
 | **libogg** | `1.3.6` | [xiph/ogg](https://github.com/xiph/ogg) |
 | **libsamplerate** | `0.2.2` | [libsndfile/libsamplerate](https://github.com/libsndfile/libsamplerate) |
